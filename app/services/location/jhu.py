@@ -8,7 +8,7 @@ from pprint import pformat as pf
 from asyncache import cached
 from cachetools import TTLCache
 
-from ...caches import check_cache, load_cache
+from ...caches import Caches
 from ...coordinates import Coordinates
 from ...location import TimelinedLocation
 from ...models import Timeline
@@ -19,12 +19,16 @@ from . import LocationService
 
 LOGGER = logging.getLogger("services.location.jhu")
 PID = os.getpid()
-
+CACHE = None
 
 class JhuLocationService(LocationService):
     """
     Service for retrieving locations from Johns Hopkins CSSE (https://github.com/CSSEGISandData/COVID-19).
     """
+
+    def __init__(self, cache: Caches):
+      global CACHE
+      CACHE = cache
 
     async def get_all(self):
         # Get the locations.
@@ -57,7 +61,7 @@ async def get_category(category):
     data_id = f"jhu.{category}"
 
     # check shared cache
-    cache_results = await check_cache(data_id)
+    cache_results = await CACHE.check_cache(data_id)
     if cache_results:
         LOGGER.info(f"{data_id} using shared cache results")
         results = cache_results
@@ -121,7 +125,7 @@ async def get_category(category):
             "source": "https://github.com/ExpDev07/coronavirus-tracker-api",
         }
         # save the results to distributed cache
-        await load_cache(data_id, results)
+        await CACHE.load_cache(data_id, results)
 
     LOGGER.info(f"{data_id} results:\n{pf(results, depth=1)}")
     return results
