@@ -5,8 +5,9 @@ from datetime import datetime
 
 from asyncache import cached
 from cachetools import TTLCache
+from pydantic.typing import NONE_TYPES
 
-from ...caches import check_cache, load_cache
+from ...caches import Caches
 from ...coordinates import Coordinates
 from ...location.nyt import NYTLocation
 from ...models import Timeline
@@ -15,11 +16,16 @@ from . import LocationService
 
 LOGGER = logging.getLogger("services.location.nyt")
 
+CACHE = None
 
 class NYTLocationService(LocationService):
     """
     Service for retrieving locations from New York Times (https://github.com/nytimes/covid-19-data).
     """
+
+    def __init__(self, cache: Caches):
+      global CACHE
+      CACHE = cache
 
     async def get_all(self):
         # Get the locations.
@@ -79,7 +85,7 @@ async def get_locations():
     # Request the data.
     LOGGER.info(f"{data_id} Requesting data...")
     # check shared cache
-    cache_results = await check_cache(data_id)
+    cache_results = await CACHE.check_cache(data_id)
     if cache_results:
         LOGGER.info(f"{data_id} using shared cache results")
         locations = cache_results
@@ -138,7 +144,7 @@ async def get_locations():
         # save the results to distributed cache
         # TODO: fix json serialization
         try:
-            await load_cache(data_id, locations)
+            await CACHE.load_cache(data_id, locations)
         except TypeError as type_err:
             LOGGER.error(type_err)
 
